@@ -1,0 +1,42 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node
+node_modules/
+dist/
+build/
+.expo/
+
+# OS
+.DS_Store
+*.pem
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Expo / React Native
+client/.expo/
+client/dist/
+client/node_modules/
+client/web-build/
+
+# Server
+server/dist/
+server/node_modules/
+
+# Prisma
+server/prisma/*.db
+
+# Others
+coverage/
+.nyc_output/
