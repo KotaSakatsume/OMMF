@@ -19,6 +19,7 @@ export type MatchStatus = 'pending' | 'matched' | 'completed' | 'expired' | 'can
 export interface MatchRequest {
   exercise: string;
   weight: number;
+  gymName?: string;
 }
 
 export interface MatchInfo {
@@ -31,6 +32,7 @@ export interface MatchInfo {
   helperId?: string;
   helperName?: string;
   createdAt: string;
+  gymName?: string;
 }
 
 // --- Socket Events: Client → Server ---
@@ -40,6 +42,7 @@ export interface ClientToServerEvents {
   'match:accept': (data: { matchId: string }) => void;
   'match:complete': (data: { matchId: string }) => void;
   'match:cancel': (data: { matchId: string }) => void;
+  'match:message': (data: { matchId: string; message: string }) => void;
   'user:register': (data: { deviceId: string }) => void;
   'user:update_name': (data: { displayName: string }) => void;
 }
@@ -53,6 +56,7 @@ export interface ServerToClientEvents {
   'match:completed': (data: { matchId: string; exp: number; newTotalExp: number; level: number; title: string; totalSpots: number }) => void;
   'match:expired': (data: { matchId: string }) => void;
   'match:cancelled': (data: { matchId: string }) => void;
+  'match:chat': (data: { matchId: string; senderId: string; senderName: string; message: string }) => void;
   'user:registered': (data: UserProfile) => void;
   'error': (data: { message: string }) => void;
 }

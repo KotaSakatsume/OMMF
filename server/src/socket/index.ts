@@ -90,15 +90,33 @@ export function setupSocketHandlers(io: Server<ClientToServerEvents, ServerToCli
           userId,
           profile.displayName,
           data.exercise,
-          data.weight
+          data.weight,
+          data.gymName
         );
 
-        // 半径50m以内の全アクティブユーザーにSOS送信
+        // 半径30m以内の全アクティブユーザーにSOS送信
         const nearbyUsers = await locationService.findNearbyUsers(
           location.lat,
           location.lng,
           config.matchRadiusMeters
         );
+
+        // 【テスト支援機能】モックヘルパーが接続している場合、距離に関係なくマッチング対象に含める
+        for (const [sId, uId] of socketUserMap.entries()) {
+          if (uId === userId) continue;
+          try {
+            const profile = await userService.getProfile(uId);
+            if (profile && profile.displayName.includes('Mock Helper')) {
+              if (!nearbyUsers.includes(uId)) {
+                nearbyUsers.push(uId);
+                // 距離計算などの整合性を保つため、位置情報もリクエスターと同じ座標に更新
+                await locationService.updateLocation(uId, location.lat, location.lng);
+              }
+            }
+          } catch (e) {
+            console.error('[Socket] Mock helper check error:', e);
+          }
+        }
 
         let notifiedCount = 0;
         for (const nearbyUserId of nearbyUsers) {
@@ -112,6 +130,8 @@ export function setupSocketHandlers(io: Server<ClientToServerEvents, ServerToCli
         }
 
         console.log(`[Socket] SOS sent to ${notifiedCount} users nearby`);
+        // 自身にも作成完了を通知し、クライアント側でcurrentMatchをセットさせる
+        socket.emit('match:created', matchInfo);
       } catch (error) {
         console.error('[Socket] match:request error:', error);
         socket.emit('error', { message: 'Failed to create match request' });
@@ -213,6 +233,49 @@ export function setupSocketHandlers(io: Server<ClientToServerEvents, ServerToCli
         }
       } catch (error) {
         console.error('[Socket] match:cancel error:', error);
+      }
+    });
+
+    // ========================================
+    // マッチ中チャット（プリセットメッセージ）
+    // ========================================
+    socket.on('match:message', async (data) => {
+      const userId = socketUserMap.get(socket.id);
+      if (!userId) return;
+
+      try {
+        const profile = await userService.getProfile(userId);
+        const matchInfo = await matchingService.getMatch(data.matchId);
+        if (!matchInfo) return;
+
+        // 相手のIDを特定
+        const targetUserId = matchInfo.requesterId === userId
+          ? matchInfo.helperId
+          : matchInfo.requesterId;
+        
+        if (!targetUserId) return;
+
+        const targetSocketId = userSocketMap.get(targetUserId);
+        if (targetSocketId) {
+          io.to(targetSocketId).emit('match:chat', {
+            matchId: data.matchId,
+            senderId: userId,
+            senderName: profile.displayName,
+            message: data.message,
+          });
+        }
+
+        // 送信者にも反映
+        socket.emit('match:chat', {
+          matchId: data.matchId,
+          senderId: userId,
+          senderName: profile.displayName,
+          message: data.message,
+        });
+
+        console.log(`[Socket] Chat: ${profile.displayName} -> ${data.message}`);
+      } catch (error) {
+        console.error('[Socket] match:message error:', error);
       }
     });
 

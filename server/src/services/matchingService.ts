@@ -15,7 +15,8 @@ export class MatchingService {
     requesterId: string,
     requesterName: string,
     exercise: string,
-    weight: number
+    weight: number,
+    gymName?: string
   ): Promise<MatchInfo> {
     const matchId = uuidv4();
 
@@ -29,6 +30,9 @@ export class MatchingService {
       status: 'pending',
       createdAt: new Date().toISOString(),
     };
+    if (gymName) {
+      matchData.gymName = gymName;
+    }
 
     await redis.hmset(`match:pending:${matchId}`, matchData);
     await redis.expire(`match:pending:${matchId}`, config.matchExpireSeconds);
@@ -44,7 +48,7 @@ export class MatchingService {
       },
     });
 
-    console.log(`[MatchingService] Match created: ${matchId} by ${requesterName} - ${exercise} ${weight}kg`);
+    console.log(`[MatchingService] Match created: ${matchId} by ${requesterName} - ${exercise} ${weight}kg at ${gymName || 'N/A'}`);
 
     return {
       matchId,
@@ -54,6 +58,7 @@ export class MatchingService {
       weight,
       status: 'pending',
       createdAt: matchData.createdAt,
+      gymName,
     };
   }
 
@@ -120,6 +125,7 @@ export class MatchingService {
         helperId,
         helperName,
         createdAt: matchData.createdAt,
+        gymName: matchData.gymName || undefined,
       },
     };
   }
@@ -175,6 +181,23 @@ export class MatchingService {
     });
 
     return true;
+  }
+
+  /**
+   * マッチング情報取得（チャット用）
+   */
+  async getMatch(matchId: string): Promise<{
+    requesterId: string;
+    helperId?: string;
+  } | null> {
+    const matchData = await redis.hgetall(`match:pending:${matchId}`);
+    if (!matchData || !matchData.requesterId) {
+      return null;
+    }
+    return {
+      requesterId: matchData.requesterId,
+      helperId: matchData.helperId || undefined,
+    };
   }
 }
 

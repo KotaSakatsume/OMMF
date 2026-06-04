@@ -16,7 +16,7 @@ import * as Haptics from 'expo-haptics';
 import * as Device from 'expo-device';
 import { router } from 'expo-router';
 import { useSocket, useLocationTracking } from '@/hooks/useSocket';
-import { useUserStore, useMatchStore, useLocationStore } from '@/stores';
+import { useUserStore, useMatchStore, useLocationStore, useSettingsStore } from '@/stores';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius, EXERCISES } from '@/constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -29,6 +29,7 @@ export default function HomeScreen() {
   const setCurrentMatch = useMatchStore((s) => s.setCurrentMatch);
   const setMatchStatus = useMatchStore((s) => s.setMatchStatus);
   const latitude = useLocationStore((s) => s.latitude);
+  const gymName = useSettingsStore((s) => s.gymName);
 
   const hasGps = latitude !== null;
   const radarColor = hasGps ? Colors.neonGreen : Colors.neonRed;
@@ -122,7 +123,7 @@ export default function HomeScreen() {
       ? customExercise.trim() 
       : selectedExercise;
       
-    sendSOS(finalExercise, parseFloat(weight));
+    sendSOS(finalExercise, parseFloat(weight), gymName || undefined);
     setMatchStatus('waiting');
     router.push('/(tabs)/matching');
   };

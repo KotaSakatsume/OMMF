@@ -1,13 +1,35 @@
 import { io, Socket } from 'socket.io-client';
+import { Platform } from 'react-native';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { ClientToServerEvents, ServerToClientEvents } from '../../shared/types';
 
-// 実機テスト用にPCのローカルIPを直接指定
-const serverIp = '10.18.246.14';
+// 開発環境用の動的なURL解決
+const getDevServerUrl = () => {
+  // シミュレーター/エミュレーターの場合 (localhostの代わりに127.0.0.1を使用してDNS解決問題を回避)
+  if (!Device.isDevice) {
+    console.log('[Socket] Running on Simulator, using 127.0.0.1 / 10.0.2.2');
+    return Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://127.0.0.1:3000';
+  }
 
-// サーバーURL（開発環境）
+  // 実機テストの場合、Expoの開発サーバーのIPを自動取得
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    console.log(`[Socket] Running on Physical Device, detected Expo host: ${ip}`);
+    return `http://${ip}:3000`;
+  }
+
+  // 自動取得に失敗した場合のフォールバックIP
+  console.log('[Socket] Fallback to hardcoded IP: 192.168.3.9');
+  return 'http://192.168.3.9:3000';
+};
+
 const SERVER_URL = __DEV__ 
-  ? `http://${serverIp}:3000`
+  ? getDevServerUrl()
   : 'https://ommf-api.example.com';
+
+console.log('[Socket] Connecting to server:', SERVER_URL);
 
 type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -17,7 +39,7 @@ export function getSocket(): TypedSocket {
   if (!socket) {
     socket = io(SERVER_URL, {
       autoConnect: false,
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'], // pollingから開始してwebsocketにアップグレード (接続性向上)
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
@@ -32,7 +54,7 @@ export function getSocket(): TypedSocket {
     });
 
     socket.on('connect_error', (error) => {
-      console.error('[Socket] Connection error:', error.message);
+      console.warn('[Socket] Connection warning (retrying):', error.message);
     });
   }
 

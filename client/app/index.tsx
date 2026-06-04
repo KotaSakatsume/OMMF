@@ -6,18 +6,21 @@ import { Colors } from '@/constants/theme';
 
 export default function IndexScreen() {
   const hasAgreedDisclaimer = useUserStore((s) => s.hasAgreedDisclaimer);
+  const hasCompletedOnboarding = useUserStore((s) => s.hasCompletedOnboarding);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (hasAgreedDisclaimer) {
-        router.replace('/(tabs)/home');
-      } else {
+      if (!hasCompletedOnboarding) {
+        router.replace('/onboarding');
+      } else if (!hasAgreedDisclaimer) {
         router.replace('/disclaimer');
+      } else {
+        router.replace('/(tabs)/home');
       }
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [hasAgreedDisclaimer]);
+  }, [hasAgreedDisclaimer, hasCompletedOnboarding]);
 
   return (
     <View style={styles.container}>
